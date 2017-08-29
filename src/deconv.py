@@ -6,6 +6,7 @@ Only content reconstruction is implemented at the moment.
 
 Models supported are VGG19
 
+https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py
 """
 
 import keras.backend as K
@@ -156,6 +157,13 @@ class Deconv(object):
 
 
 class Evaluator(object):
+    """
+    Evaluator class makes it possible to compute loss and
+    gradients in one pass while retrieving them via two separate
+    functions, "loss" and "grads". This is done because scipy.optimize
+    requires separate functions for loss and gradients, but computing
+    them separately would be inefficient
+    """
 
     def __init__(self, f_outputs: Callable) -> None:
         self.loss_value: float = None
