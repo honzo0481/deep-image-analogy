@@ -16,19 +16,37 @@ import os
 from keras.preprocessing.image import load_img, img_to_array
 from scipy.optimize import fmin_l_bfgs_b
 from scipy.misc import imsave
-from typing import Tuple, List, Dict, Callable
+from typing import Tuple, List, Callable
 
 
 class Deconv(object):
 
     def __init__(self, model, preprocess_input: Callable, path_A: str,
-                 target_size: Tuple=(448, 448)) -> None:
+                 path_B: str, target_size: Tuple=(448, 448)) -> None:
+        """
+        Deconvolution initialization
+
+       :param model: keras model for the VGG architecture
+       :param preprocess_input: fn, performs preprocessing operations on img
+       :param path_A: str, path to img that holds **content** information
+       :param path_B: str, path to img that holds **style** information
+       :param target_size: tuple, dimensions of combination pictures
+        """
         self.model = model
         self.preprocess_input = preprocess_input
         if not os.path.isfile(path_A):
             raise IOError
         self.img_ncols, self.img_nrows = target_size
         self.img_a = self._preprocess_image(path_A)
+        self.img_b = self._preprocess_image(path_B)
+        self.features_list = self._get_feature_layers()
+
+    def _get_feature_layers(self) -> List[str]:
+        feature_layers = ['block1_conv1', 'block2_conv1',
+                          'block3_conv1', 'block4_conv1',
+                          'block5_conv1']
+
+        return feature_layers
 
     def _preprocess_image(self, path: str) -> np.ndarray:
         """
@@ -61,20 +79,75 @@ class Deconv(object):
         x = np.clip(x, 0, 255).astype('uint8')
         return x
 
-    def _content_loss(self, base: np.ndarray, gen: np.ndarray) -> np.ndarray:
+    def _content_loss(self, base: np.ndarray,
+                      combination: np.ndarray) -> np.ndarray:
         """
-        Loss function for content similiarly between base image and generated
+        Loss function for content similiarly between base image and combination
         image
 
-        By minimizing the loss, our generated image will be consistent with
-        the base image.
+        By minimizing the loss, our generated combinated image will be
+        consistent with the base image.
         """
-        return K.sum(K.square(gen - base))
+        return K.sum(K.square(combination - base))
 
-    def deconv(self, noise_ratio: float=1.0, content_weight: float=1.0,
-               layer: str='block5_conv1', iterations: int=15,
+    def _gram_matrix(self, x: np.ndarray) -> np.ndarray:
+        """
+        Gram matrix of an image tensor
+        (feature-wise outer product)
+        """
+        assert K.ndim(x) == 3
+        if K.image_data_format == 'channels_first':
+            features = K.batch_flatten(x)
+        else:
+            features = K.batch_flatten(K.permute_dimensions(x, (2, 0, 1)))
+
+        gram = K.dot(features, K.transpose(features))
+        return gram
+
+    def _style_loss(self, style: np.ndarray, combination: np.ndarray):
+        """
+        Loss function for style similiarity between style reference image and
+        combination image. Based on gram matrices(which capture style) of
+        feature maps from the style reference image and from the generated
+        image
+        """
+        assert K.ndim(style) == 3
+        assert K.ndim(combination) == 3
+        S = self._gram_matrix(style)
+        C = self._gram_matrix(combination)
+        channels = 3
+        size = self.img_nrows * self.img_ncols
+        return K.sum(K.square(S - C)) / (4. * (channels ** 2) * (size ** 2))
+
+    def _total_variation_loss(self, x: np.ndarray) -> np.ndarray:
+        """
+        Total loss is a combination of the other two loss functions,
+        designed to keep the generated combined image locally
+        coherent
+        """
+        assert K.ndim(x) == 4
+        if K.image_data_format() == 'channels_first':
+            a = K.square(
+                x[:, :, :self.img_nrows - 1, :self.img_ncols - 1] -
+                x[:, :, 1:, :self.img_ncols - 1])
+            b = K.square(
+                x[:, :, :self.img_nrows - 1, :self.img_ncols - 1] -
+                x[:, :, :self.img_nrows - 1, 1:])
+        else:
+            a = K.square(
+                x[:, :self.img_nrows - 1, :self.img_ncols - 1, :] -
+                x[:, 1:, :self.img_ncols - 1, :])
+            b = K.square(
+                x[:, :self.img_nrows - 1, :self.img_ncols - 1, :] -
+                x[:, :self.img_nrows - 1, 1:, :])
+        return K.sum(K.pow(a + b, 1.25))
+
+    def deconv(self, noise_ratio: float=0.025, content_weight: float=0.025,
+               style_weight: float=1.0, total_variation_weight: float=1.0,
+               output_layer: str='block5_conv1', iterations: int=15,
                output_steps: int=5, save_images: bool=True,
-               save_dir: str='deconv_results') -> np.ndarray:
+               save_dir: str='deconv_results',
+               testing: bool=False) -> np.ndarray:
         """
         Performs image deconvolution on a layer in the vgg19 model
 
@@ -92,10 +165,15 @@ class Deconv(object):
         """
 
         # Get inputs
-        a_image = K.variable(self.img_a)
-        generated_image = K.placeholder((1, self.img_nrows, self.img_ncols, 3))
-        input_tensor = K.concatenate([a_image,
-                                      generated_image], axis=0)
+        base_image = K.variable(self.img_a)
+        style_reference_image = K.variable(self.img_b)
+        combination_image = K.placeholder((1,
+                                           self.img_nrows,
+                                           self.img_ncols,
+                                           3))
+        input_tensor = K.concatenate([base_image,
+                                      style_reference_image,
+                                      combination_image], axis=0)
 
         # Get Model
         model = self.model(include_top=False, weights='imagenet',
@@ -104,20 +182,35 @@ class Deconv(object):
         feature_maps = dict([(layer.name, layer.output)
                              for layer in model.layers])
 
-        if layer not in feature_maps:
+        if output_layer not in feature_maps:
             raise IOError("input layer cannot be found in model")
 
-        # Get desired features
-        layer_features = feature_maps[layer]
-        a_features = layer_features[0, :, :, :]
-        gen_features = layer_features[1, :, :, :]
+        # feature_layers = self.features_list[:self.features_list.index(
+            # output_layer)]
 
         # Setup Loss
         loss = K.variable(0.)
-        loss += content_weight * self._content_loss(a_features, gen_features)
 
-        # Get the gradients of the generated image wrt the loss
-        grads = K.gradients(loss, generated_image)
+        # Calculate content loss
+        layer_features = feature_maps[output_layer]
+        base_image_features = layer_features[0, :, :, :]
+        combination_features = layer_features[2, :, :, :]
+        loss += content_weight * self._content_loss(base_image_features,
+                                                    combination_features)
+
+        # Calculate style loss
+        for layer in self.features_list:
+            layer_features = feature_maps[layer]
+            style_image_features = layer_features[1, :, :, :]
+            combination_features = layer_features[2, :, :, :]
+            sl = self._style_loss(style_image_features, combination_features)
+            loss += (style_weight / len(self.features_list)) * sl
+
+        loss += total_variation_weight * self._total_variation_loss(
+            combination_image)
+
+        # Get the gradients of the combination image wrt the loss
+        grads = K.gradients(loss, combination_image)
 
         outputs = [loss]
         if isinstance(grads, (list, tuple)):
@@ -125,7 +218,7 @@ class Deconv(object):
         else:
             outputs.append(grads)
 
-        f_outputs = K.function([generated_image], outputs)
+        f_outputs = K.function([combination_image], outputs)
 
         # Init evaluator
         evaluator = Evaluator(f_outputs)
@@ -140,17 +233,25 @@ class Deconv(object):
                 os.makedirs(save_dir)
 
         # run scipy-based optimization (L-BFGS) over the pixels of the
-        # generated image so as to minimize the content loss
-        for i in range(iterations):
+        # combination image so as to minimize the content loss
+        if testing:
+            import tqdm
+            range_fn = tqdm.trange
+        else:
+            range_fn = range
+
+        for i in range_fn(iterations):
             input_img, _, _ = fmin_l_bfgs_b(evaluator.loss,
                                             input_img.flatten(),
                                             fprime=evaluator.grads,
                                             maxfun=20)
             if i % output_steps == 0:
                 img = self._deprocess_image(input_img.copy())
-                # save current generated image
+                # save current combination image
                 if save_images:
-                    fname = '{}/from_{}_at_{}.png'.format(save_dir, layer, i)
+                    fname = '{}/from_{}_at_{}.png'.format(save_dir,
+                                                          output_layer,
+                                                          i)
                     imsave(fname, img)
 
         return self._deprocess_image(input_img.copy())
