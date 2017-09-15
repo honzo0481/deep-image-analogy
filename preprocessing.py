@@ -34,5 +34,8 @@ def get_feature_pyramids(A, Bp):
     layers = ['block1_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1']
 
     for layer, i in enumerate(layers, 1):
-        block = Model(inputs=vgg19.input, outputs=vgg19.get_layer('layer').output)
-        
+        block = Model(inputs=vgg19.input, outputs=vgg19.get_layer(layer).output)
+        FA[i] = block.predict(A)
+        FBp[i] = block.predict(Bp)
+
+    return FA, FBp
