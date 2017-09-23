@@ -34,7 +34,7 @@ def main():
     parser.add_argument('Bp')
     args = parser.parse_args()
 
-    deep_image_analogy(args.A, args.Bp)
+    return deep_image_analogy(args.A, args.Bp)
 
 
 if __name__ == '__main__':
