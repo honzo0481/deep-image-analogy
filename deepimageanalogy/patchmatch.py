@@ -33,8 +33,9 @@ class Patchmatcher:
     def _random_init(self):
         """Initialize an NNF filled with random offsets."""
         # for now assume the first two input dims will always be square.
-        # The subtraction accounts for padding.
-        length = self.A.shape[0] - 2
+        # Floor division gives the before and after pad width
+        pad_width = self.patchsize // 2
+        length = self.A.shape[0] - pad_width*2
 
         NNF = np.empty((length, length, 2), dtype='int')
         for i, ix in enumerate(np.ix_(np.arange(length), np.arange(length))):
@@ -43,8 +44,8 @@ class Patchmatcher:
         offsets = np.random.randint(length, size=(length, length, 2), dtype='int')
 
         NNF = offsets - NNF
-
-        NNF = np.pad(NNF, ((1, 1), (1, 1), (0, 0)), 'constant', constant_values=0)
+        pad_widths = ((pad_width, pad_width), (pad_width, pad_width), (0, 0))
+        NNF = np.pad(NNF, pad_widths, 'constant', constant_values=0)
 
         return NNF
 
