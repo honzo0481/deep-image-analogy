@@ -6,8 +6,8 @@ import numpy as np
 class Patchmatcher:
     """compute an NNF that maps patches in A/A' to B/B' or vice versa."""
 
-    def __init__(self, A, Ap, B, Bp, NNF=None):
-        """"instantiate a PatchMatcher object.
+    def __init__(self, A, Ap, B, Bp, patchsize=3, NNF=None):
+        """Instantiate a PatchMatcher object.
 
         Parameters
         ----------
@@ -32,8 +32,20 @@ class Patchmatcher:
 
     def _random_init(self):
         """Initialize an NNF filled with random offsets."""
-        # Start with an empty array of shape A.rows X A.cols X 2
-        NNF = np.empty((*self.A.shape, 2), dtype=np.uint)
+        # for now assume the first two input dims will always be square.
+        # The subtraction accounts for padding.
+        length = self.A.shape[0] - 2
+
+        NNF = np.empty((length, length, 2), dtype='int')
+        for i, ix in enumerate(np.ix_(np.arange(length), np.arange(length))):
+            NNF[..., i] = ix
+
+        offsets = np.random.randint(length, size=(length, length, 2), dtype='int')
+
+        NNF = offsets - NNF
+
+        NNF = np.pad(NNF, ((1, 1), (1, 1), (0, 0)), 'constant', constant_values=0)
+
         return NNF
 
     def _propagate(self):

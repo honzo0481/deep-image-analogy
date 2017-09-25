@@ -3,7 +3,7 @@
 import numpy as np
 
 from preprocessing import get_feature_pyramids
-from patchmatch import patchmatch
+from patchmatch import Patchmatcher
 import argparse
 
 
