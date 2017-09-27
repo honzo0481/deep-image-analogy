@@ -6,7 +6,7 @@ import numpy as np
 class Patchmatcher(object):
     """compute an NNF that maps patches in A/A' to B/B' or vice versa."""
 
-    def __init__(self, A, Ap, B, Bp, patchsize=3, NNF=None):
+    def __init__(self, A, Ap, B, Bp, patchsize=3, w=None, alpha=0.5, NNF=None):
         """Instantiate a PatchMatcher object.
 
         Parameters
@@ -29,14 +29,16 @@ class Patchmatcher(object):
         self.B = B
         self.Bp = Bp
         self.patchsize = patchsize
+        # Floor division gives the before and after pad widths
+        self.padwidth = self.patchsize // 2
+        self.w = w or self.padwidth
+        self.alpha = alpha
         self.NNF = NNF or self._random_init()
 
     def _random_init(self):
         """Initialize an NNF filled with random offsets."""
-        # Floor division gives the before and after pad widths
-        pad_width = self.patchsize // 2
         # for now assume the first two input dims will always be square.
-        length = self.A.shape[0] - pad_width*2
+        length = self.A.shape[0] - self.padwidth*2
 
         NNF = np.empty((length, length, 2), dtype='int')
         for i, ix in enumerate(np.ix_(np.arange(length), np.arange(length))):
@@ -45,7 +47,7 @@ class Patchmatcher(object):
         offsets = np.random.randint(length, size=(length, length, 2), dtype='int')
 
         NNF = offsets - NNF
-        pad_widths = ((pad_width, pad_width), (pad_width, pad_width), (0, 0))
+        pad_widths = ((self.padwidth, self.padwidth), (self.padwidth, self.padwidth), (0, 0))
         NNF = np.pad(NNF, pad_widths, 'constant', constant_values=0)
 
         return NNF
@@ -62,6 +64,7 @@ class Patchmatcher(object):
     def _random_search(self):
         """Search for good offsets at exponentially descreasing distances."""
         # u = v0 + w * a**i * R
+        i = 0
         # v0: current nearest neighbor f(x,y)
         # w: search radius. default max image dim.
         # alpha: scaling factor. default 1/2
