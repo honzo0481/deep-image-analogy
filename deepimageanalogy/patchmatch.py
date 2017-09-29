@@ -39,16 +39,8 @@ class Patchmatcher(object):
         """Initialize an NNF filled with random offsets."""
         # for now assume the first two input dims will always be square.
         length = self.A.shape[0] - self.padwidth*2
-
-        NNF = np.empty((length, length, 2), dtype='int')
-        for i, ix in enumerate(np.ix_(np.arange(length), np.arange(length))):
-            NNF[..., i] = ix
-
-        offsets = np.random.randint(length, size=(length, length, 2), dtype='int')
-
-        NNF = offsets - NNF
-        pad_widths = ((self.padwidth, self.padwidth), (self.padwidth, self.padwidth), (0, 0))
-        NNF = np.pad(NNF, pad_widths, 'constant', constant_values=0)
+        # NOTE: in this implementation padding is not included during initialization.
+        NNF = np.random.randint(length, size=(length**2), dtype='int')
 
         return NNF
 
@@ -61,7 +53,7 @@ class Patchmatcher(object):
         # for even iterations iterate in reverse scan order and examine patches
 
 
-    def _random_search(self):
+    def _random_search(self, index, offset):
         """Search for good offsets at exponentially descreasing distances."""
         # u = v0 + w * a**i * R
         i = 0
@@ -71,7 +63,7 @@ class Patchmatcher(object):
         # i: 0, 1, 2, ... until w*a**i < 1
         # R: uniform random number in [-1, 1], [-1, 1]
 
-    def predict(self):
+    def predict(self, index, offset):
         """Return an nnf."""
         # repeat 5 times
         # on odd iterations:
@@ -82,3 +74,7 @@ class Patchmatcher(object):
             # iterate over all coords x,y in NNF from (right to left, bottom to top)
             # propagate down and right
             # random search
+        for i in range(5):
+            for index, offset in self.NNF:
+                self._propagate(index, offset)
+                self._random_search(index, offset)
