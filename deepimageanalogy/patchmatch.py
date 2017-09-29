@@ -44,7 +44,7 @@ class Patchmatcher(object):
 
         return NNF
 
-    def _propagate(self):
+    def _propagate(self, index, offset):
         """Propagate adjacent good offsets."""
             # get the offsets f(x-1, y), and f(x, y-1)
             # compute distance D between:
@@ -63,7 +63,7 @@ class Patchmatcher(object):
         # i: 0, 1, 2, ... until w*a**i < 1
         # R: uniform random number in [-1, 1], [-1, 1]
 
-    def predict(self, index, offset):
+    def predict(self):
         """Return an nnf."""
         # repeat 5 times
         # on odd iterations:
