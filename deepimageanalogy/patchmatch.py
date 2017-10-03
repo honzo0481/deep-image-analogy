@@ -2,11 +2,16 @@
 
 import numpy as np
 
+def  bidirectional_distance(p, q):
+    """Return the bidirectional distance D between patches P and Q.
+    """
+
+
 
 class Patchmatcher(object):
-    """compute an NNF that maps patches in A/A' to B/B' or vice versa."""
+    """Compute an NNF that maps patches from A/A' -> B/B' or vice versa."""
 
-    def __init__(self, A, Ap, B, Bp, patchsize=3, w=None, alpha=0.5, NNF=None):
+    def __init__(self, dist_metric='bi', patchsize=3, w=None, alpha=0.5, NNF=None):
         """Instantiate a PatchMatcher object.
 
         Parameters
@@ -24,10 +29,9 @@ class Patchmatcher(object):
             previous layer should be passed in or None. If None, an array with
             random offsets will be created.
         """
-        self.A = A
-        self.Ap = Ap
-        self.B = B
-        self.Bp = Bp
+        if dist_metric == 'bi':
+            self.dist_metric = bidirectional_distance
+
         self.patchsize = patchsize
         # Floor division gives the before and after pad widths
         self.padwidth = self.patchsize // 2
@@ -44,16 +48,17 @@ class Patchmatcher(object):
 
         return NNF
 
-    def _propagate(self, index, offset):
+    def _propagate(self, even):
         """Propagate adjacent good offsets."""
             # get the offsets f(x-1, y), and f(x, y-1)
+            for index, offset in enumerate(self.NNF):
+                p = index // l, i % l
             # compute distance D between:
             # A[x, y], B[f(x, y)], B[f(x-1, y) + (1, 0)], and B[f(x, y-1) + (0, 1)]
             # set f[x, y] to be argmin of computed distances
         # for even iterations iterate in reverse scan order and examine patches
 
-
-    def _random_search(self, index, offset):
+    def _random_search(self):
         """Search for good offsets at exponentially descreasing distances."""
         # u = v0 + w * a**i * R
         i = 0
@@ -74,7 +79,7 @@ class Patchmatcher(object):
             # iterate over all coords x,y in NNF from (right to left, bottom to top)
             # propagate down and right
             # random search
-        for i in range(5):
-            for index, offset in self.NNF:
-                self._propagate(index, offset)
-                self._random_search(index, offset)
+        for i in range(1, 6):
+                even = i % 2
+                self._propagate(even=even)
+                self._random_search()
