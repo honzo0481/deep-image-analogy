@@ -1,6 +1,6 @@
 """Patchmatch tests."""
 
-from patchmatch import Patchmatcher
+from deepimageanalogy.patchmatch import Patchmatcher
 
 
 def test_random_init(A):
