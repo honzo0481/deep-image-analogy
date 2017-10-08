@@ -1,7 +1,20 @@
+"""Core module for the package."""
+
+import argparse
 import os
+
+from preprocessing import get_feature_pyramids
 
 
 class DeepAnalogy(object):
+    """Compute Image Analogies between two image pairs
+
+    1. Preprocessing
+    2. NNF Search
+    3. Latent Image Reconstruction
+    4. NNF Upsampling
+    5. Output
+    """
 
     def __init__(self, path_A: str='', path_BP: str='',
                  output_dir: str='', blend_weight: int=3,
@@ -13,6 +26,8 @@ class DeepAnalogy(object):
         self.blend_weight = blend_weight
         self.ratio = ratio
         self.photo_transfer = photo_transfer
+        self.FA = None
+        self.FBp = None
 
     @property
     def path_A(self):
@@ -93,7 +108,7 @@ class DeepAnalogy(object):
         return '\n'.join(msg)
 
     def load_inputs(self):
-        raise NotImplementedError
+        self.FA, self.FBp = get_feature_pyramids(self.path_A, self.path_BP)
 
     def compute_ann(self):
 
@@ -106,3 +121,12 @@ class DeepAnalogy(object):
         # Deconv
         # Upsample
         raise NotImplementedError
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Make image analogies.')
+    parser.add_argument('A')
+    parser.add_argument('Bp')
+    args = parser.parse_args()
+
+    dia = DeepAnalogy(args.A, args.Bp)
