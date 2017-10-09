@@ -3,7 +3,7 @@
 import numpy as np
 
 
-def  bidirectional_distance(p, q, A, Ap, B, Bp):
+def  bidirectional_distance(p, q, A, Bp, B, Ap):
     """Return the bidirectionally weighted distance D between patches P and Q.
 
     Where p and q are patch centers in the source and target images respectively.
@@ -30,7 +30,7 @@ def  bidirectional_distance(p, q, A, Ap, B, Bp):
     """
 
 
-def unidirectional_distance(p, q, A, B):
+def unidirectional_distance(p, q, A, Bp):
     """Return the unidirectional distance D between patches P and Q.
 
     Where p and q are patch centers in the source and target images respectively.
@@ -43,8 +43,8 @@ def unidirectional_distance(p, q, A, B):
 
     A: ndarray
         The original structural image.
-    B: ndarray
-        The analogous, synthetic style image.
+    Bp: ndarray
+        The original style image.
 
     Returns
     ------
@@ -56,68 +56,109 @@ def unidirectional_distance(p, q, A, B):
 class Patchmatcher(object):
     """Compute an NNF that maps patches from A/A' -> B/B' or vice versa."""
 
-    def __init__(self, dist_metric, NNFsize=None, NNF=None, patchsize=3, w=None, alpha=0.5):
+    def __init__(self,
+                 A,
+                 Bp,
+                 B=None,
+                 Ap=None,
+                 NNF=None,
+                 dist_metric=None,
+                 patchsize=3, 
+                 w=None, 
+                 alpha=0.5):
         """Instantiate a PatchMatcher object.
 
         Parameters
         ----------
-        dist_metric: 
+        A:
 
-        NNFsize:
+        Bp:
+
+        B:
+
+        Ap:
 
         NNF: ndarray or None
             An array containing the offsets. Either the upsampled NNF from the
             previous layer should be passed in or None. If None, an array with
             random offsets will be created.
 
+        dist_metric: 
+
         patchsize:
 
         w:
 
         alpha:
-        
+
         """
-        if not NNFsize and not NNF:
-            raise ValueError('Either NNF or NNFsize must be provided.')
+        if (B is not None and Ap is None) or (B is None and Ap is not None):
+            raise ValueError('B and Ap must be provided together. One is missing.')
 
-        if NNF:
-            self.NNFsize = NNF.shape[0]
+        self.A = A
+        self.Bp = Bp
+
+        if B is not None and Ap is not None:
+            self.B = B
+            self.Ap = Ap
+
+        # TODO: handle case when bidirectional_distance is provided with only 
+        # two images instead of four. 
+        if dist_metric:
+            self.dist_metric = dist_metric
         else:
-            self.NNFsize = NNFsize
-
-        self.dist_metric = dist_metric
+            self.dist_metric = bidirectional_distance
+        
         self.patchsize = patchsize
         # Floor division gives the before and after pad widths
         self.padwidth = self.patchsize // 2
-        self.w = w or self.NNFsize
+
+        self.nnflen = self.A.shape[0] - self.padwidth * 2
+
+        self.w = w or self.nnflen
         self.alpha = alpha
         # for now assume the first two input dims will always be square.
         self.NNF = NNF or self._random_init()
 
     def _random_init(self):
         """Initialize an NNF filled with random offsets."""
-        NNF = np.random.randint(self.NNFsize, size=(self.NNFsize**2), dtype='int')
+        NNF = np.random.randint(self.nnflen**2, size=self.nnflen**2, dtype='int')
 
         return NNF
+
+    def _get_patches(self, index, offset):
+        """"""
+        s = self.nnflen
+        # the patch center in the source image. z in the Barnes paper.
+        p = index // s, index % s
+        # candidate patch in the target image. f(z)
+        q0 = offset // s, offset % s
+        # another candidate patch. f(z - [1,0]) + [1,0]
+        q1 = (self.NNF[index-1]+1) % self.NNF.size // s, (self.NNF[index-1]+1) % self.NNF.size % s
+        # last candidate. f(z - [0,1]) + [0,1]
+        q2 = (self.NNF[index-s]+s) // s, (self.NNF[index-s]+s) % s
+
+        return p, q0, q1, q2
 
     def _propagate(self, even):
         """Propagate adjacent good offsets."""
         # get the offsets f(x-1, y), and f(x, y-1)
-        s = self.NNFsize
+        # TODO: still need to clamp the q values that fall outside the nnf bounds.
         for index, offset in enumerate(self.NNF):
-            # the patch center in the source image. z in the Barnes paper.
-            p = index // s, index % s
-            # candidate patch in the target image. f(z) 
-            q0 = offset // s, offset % s
-            # another candidate patch. f(z - [1,0]) + [1,0]
-            q1 = (self.NNF[index-1]+1) // s, (self.NNF[index-1]+1) % s
-            # last candidate. f(z - [0,1]) + [0,1]
-            q2 = (self.NNF[index-s]+s) // s, (self.NNF[index-1]+1) % s
+            p, q0, q1, q2 = self._get_patches(index, offset)
 
-        # compute distance D between:
-        # A[x, y], B[f(x, y)], B[f(x-1, y) + (1, 0)], and B[f(x, y-1) + (0, 1)]
-        # set f[x, y] to be argmin of computed distances
-        # for even iterations iterate in reverse scan order and examine patches
+            # compute distance D between:
+            # A[x, y], B[f(x, y)], B[f(x-1, y) + (1, 0)], and B[f(x, y-1) + (0, 1)]
+            d0 = self.dist_metric(p, q0)
+            d1 = self.dist_metric(p, q1)
+            d2 = self.dist_metric(p, q2)
+            # set f[x, y] to be argmin of computed distances
+            if d0 > d1:
+                self.NNF[index] = q1[0]*self.nnflen + q1[1]
+                d0 = d1
+            if d0 > d2:
+                self.NNF[index] = q2[0]*self.nnflen + q2[1]
+            # TODO: for even iterations iterate in reverse scan order and examine patches
 
     def _random_search(self):
         """Search for good offsets at exponentially descreasing distances."""
