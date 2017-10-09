@@ -266,9 +266,8 @@ class Patchmatch(object):
             if verbose:
                 if self._curr_iteration == 0:
                     print("\nStarting Propagation and Random Search...")
-                else:
-                    print("{}/{}\n".format(self._curr_iteration + 1,
-                                           self.iterations))
+                print("\t{}/{}".format(self._curr_iteration + 1,
+                                       self.iterations))
             # Forward
             NNF, NNF_D = self._propagate_and_random_search(
                 self.source_patches,
@@ -280,10 +279,16 @@ class Patchmatch(object):
                 if not os.path.isdir(img_directory):
                     os.mkdir(img_directory)
 
-                filename = "nnf_forward_%d.png" % (self._curr_iteration + 1)
+                filename = "nnf_%d.png" % (self._curr_iteration + 1)
                 utils.reconstruct_source_from_target(
                     self.target,
                     NNF,
                     filename=os.path.join(img_directory, filename))
 
             self._curr_iteration += 1
+
+        if verbose:
+            if write_images:
+                print("\nImages saved to \'{}\' directory.".format(
+                    img_directory))
+            print("Finished...")
