@@ -8,11 +8,12 @@ from typing import Tuple
 
 
 class Patchmatch(object):
-    """Compute an NNF that maps patches in A/A' to B/B' or vice versa.
+    """Compute an NNF that maps patches from source to target
 
     """
 
-    def __init__(self, A, Ap, B, Bp,
+    def __init__(self, source: np.ndarray,
+                 target: np.ndarray,
                  patchsize: int=7 // 2,
                  w: int=None,
                  alpha: float=0.5,
@@ -21,54 +22,41 @@ class Patchmatch(object):
 
         Parameters
         ----------
-        A: ndarray
+        source: ndarray
             The original structural image.
-        Ap: ndarray
-            The analogous, synthetic structural image.
-        B: ndarray
+        target: ndarray
             The analogous, synthetic style image.
-        Bp: ndarray
-            The original style image.
         NNF: ndarray or None
             An array containing the offsets. Either the upsampled NNF from the
             previous layer should be passed in or None. If None, an array with
             random offsets will be created.
         W: int
             Maximum search radius. If not specified then the maximum image
-            dimension from image A will be used
+            dimension from source will be used
         """
         # TODO(Use better getters and setters with validation checks)
         # TODO(add validation check for patchsize-> must be odds)
-        if any(img is None for img in (A, Ap, B, Bp)):
+        if any(img is None for img in (source, target)):
             raise ValueError
 
-        if A.shape != B.shape or Ap.shape != Bp.shape:
+        if source.shape != target.shape:
             raise ValueError
 
-        self.A = A
-        self.Ap = Ap
-        self.B = B
-        self.Bp = Bp
+        self.source = source
+        self.target = target
         self.patchsize = patchsize
-        self.w = w or np.max(self.A.shape[0:2])
+        self.w = w or np.max(self.source.shape[0:2])
         self.alpha = alpha
         self.iterations = iterations
         self._curr_iteration = 0
 
-        self.NNF_forward = self._random_init(self.A)
-        self.NNF_reverse = self._random_init(self.B)
-        self.source_patches_forward = utils.make_patch_matrix(
-            self.A, self.patchsize)
-        self.target_patches_forward = utils.make_patch_matrix(
-            self.A, self.patchsize)
-        self.source_patches_reverse = utils.make_patch_matrix(
-            self.B, self.patchsize)
-        self.target_patches_reverse = utils.make_patch_matrix(
-            self.B, self.patchsize)
-        self.NNF_D_forward = np.empty(
-            (self.A.shape[0], self.A.shape[1])) * np.nan
-        self.NNF_D_reverse = np.empty(
-            (self.B.shape[0], self.B.shape[1])) * np.nan
+        self.NNF = self._random_init(self.source)
+        self.NNF_D = np.empty(
+            (self.source.shape[0], self.source.shape[1])) * np.nan
+        self.source_patches = utils.make_patch_matrix(
+            self.source, self.patchsize)
+        self.target_patches = utils.make_patch_matrix(
+            self.source, self.patchsize)
 
     def _random_init(self,
                      source_image: np.ndarray) -> np.ndarray:
@@ -256,7 +244,8 @@ class Patchmatch(object):
 
     def propagate_and_random_search(self,
                                     write_images: bool=False,
-                                    img_directory: str="results"):
+                                    img_directory: str="results",
+                                    verbose: bool=False):
         """Propagate and random search
 
         """
@@ -274,12 +263,18 @@ class Patchmatch(object):
         # random search
 
         while self._curr_iteration < self.iterations:
+            if verbose:
+                if self._curr_iteration == 0:
+                    print("\nStarting Propagation and Random Search...")
+                else:
+                    print("{}/{}\n".format(self._curr_iteration + 1,
+                                           self.iterations))
             # Forward
-            NNF_forward, NNF_D_forward = self._propagate_and_random_search(
-                self.source_patches_forward,
-                self.target_patches_forward,
-                self.NNF_forward,
-                self.NNF_D_forward)
+            NNF, NNF_D = self._propagate_and_random_search(
+                self.source_patches,
+                self.target_patches,
+                self.NNF,
+                self.NNF_D)
 
             if write_images:
                 if not os.path.isdir(img_directory):
@@ -287,10 +282,8 @@ class Patchmatch(object):
 
                 filename = "nnf_forward_%d.png" % (self._curr_iteration + 1)
                 utils.reconstruct_source_from_target(
-                    self.B,
-                    NNF_forward,
+                    self.target,
+                    NNF,
                     filename=os.path.join(img_directory, filename))
-
-            # TODO(Backward)
 
             self._curr_iteration += 1

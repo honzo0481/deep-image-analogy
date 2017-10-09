@@ -1,6 +1,4 @@
 """Core module for the package."""
-
-import argparse
 import os
 
 from preprocessing import get_feature_pyramids
@@ -121,12 +119,3 @@ class DeepAnalogy(object):
         # Deconv
         # Upsample
         raise NotImplementedError
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Make image analogies.')
-    parser.add_argument('A')
-    parser.add_argument('Bp')
-    args = parser.parse_args()
-
-    dia = DeepAnalogy(args.A, args.Bp)
