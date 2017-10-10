@@ -14,7 +14,7 @@ class Patchmatch(object):
 
     def __init__(self, source: np.ndarray,
                  target: np.ndarray,
-                 patchsize: int=7 // 2,
+                 patchsize: int=3,
                  w: int=None,
                  alpha: float=0.5,
                  iterations: int=5) -> None:
@@ -30,9 +30,11 @@ class Patchmatch(object):
             An array containing the offsets. Either the upsampled NNF from the
             previous layer should be passed in or None. If None, an array with
             random offsets will be created.
-        W: int
+        w: int
             Maximum search radius. If not specified then the maximum image
             dimension from source will be used
+        alpha: float
+            Scaling factor for the search radius
         """
         # TODO(Use better getters and setters with validation checks)
         # TODO(add validation check for patchsize-> must be odds)
@@ -59,6 +61,38 @@ class Patchmatch(object):
             self.source, self.patchsize)
 
     def _random_init(self,
+                     source_image: np.ndarray) -> np.ndarray:
+        """Initialize an NNF filled with random offsets."""
+        im_shape = list(source_image.shape)
+        padwidth = self.patchsize // 2
+        im_shape[0] -= padwidth*2
+        im_shape[1] -= padwidth*2
+
+        NNF = np.empty((im_shape[0], im_shape[1], 2), dtype='int')
+        for i, ix in enumerate(np.ix_(np.arange(im_shape[0]),
+                                      np.arange(im_shape[1]))):
+            NNF[..., i] = ix
+
+        # offsets = np.random.randint(im_shape[0],
+        #                             size=(im_shape[0], im_shape[1], 2),
+        #                             dtype='int')
+
+        x = np.random.randint(low=0, high=im_shape[1],
+                              size=(im_shape[0], im_shape[1]))
+        y = np.random.randint(low=0, high=im_shape[0],
+                              size=(im_shape[0], im_shape[1]))
+
+        # Stack them
+        # offsets = np.dstack((y, x))
+        offsets = np.dstack((x, y))
+
+        NNF = offsets - NNF
+        pad_widths = ((padwidth, padwidth), (padwidth, padwidth), (0, 0))
+        NNF = np.pad(NNF, pad_widths, 'constant', constant_values=0)
+
+        return NNF
+
+    def _random_init2(self,
                      source_image: np.ndarray) -> np.ndarray:
         """Initialize an NNF filled with random offsets
 
@@ -97,32 +131,37 @@ class Patchmatch(object):
                                                                  np.ndarray]:
         """Propagate and search adjacent good offsets
 
-        Step 1: propagate
-        Attempt to improve our NNF(x, y) using known offsets of NNF(x-1, y) and
-        NNF(x, y-1). We aren't find good correspondences for every pixel of the
+        Step 1: Propagate
+        Attempt to improve our NNF(x, y) using known offsets.
+
+        We aren't finding good correspondences for every pixel of the
         images instead we look for best correspondence of some seeds(patche
         centers). Flow values are propagated from neighbor seeds to current
         seed if they have already been examined in the iteration.
 
         Note: Offsets are examined in scan order(from left to right, top to
         bottom) on odd iterations and reverse scan order on even iterations.
+
+        Step 2: Random Search
         """
         odd_iteration = self._curr_iteration % 2 != 0
         x_size, y_size = source_patches.shape[0], source_patches.shape[1]
         F = NNF.copy()
         D = NNF_D
-        offset = 1
 
-        # TODO(Why start out or end 2 pixels short?)
         if odd_iteration:
-            start_x, start_y = 1, 1
+            # improve f(x,y) using known offsets f(x-1,y) and f(x,y-1)
+            start_x, start_y = 0, 0
             end_x = source_patches.shape[0] - 2
             end_y = source_patches.shape[1] - 2
+            offset = -1
             loop = 1
         else:
+            # improve f(x,y) using known offsets f(x+1,y) and f(x,y+1)
             start_x = source_patches.shape[0] - 2
             start_y = source_patches.shape[1] - 2
             end_x, end_y = 0, 0
+            offset = 1
             loop = -1
 
         k = int(np.ceil(-np.log10(self.w) / np.log10(self.alpha)))
@@ -134,6 +173,7 @@ class Patchmatch(object):
                 # PROPOGATE
                 #
 
+                # TODO(Go back to forward and reverse NNF)
                 # TODO(PROPOGATE)
                 # get the offsets f(x-1, y), and f(x, y-1)
                 # compute distance D between:
@@ -151,12 +191,15 @@ class Patchmatch(object):
                 D_i = np.clip(D_i, -x_size, x_size - 1)
                 D_j = np.clip(D_j, -y_size, y_size - 1)
 
+                # Initialize
                 _D_horizontal = None
                 _D_verticle = None
                 _D_orig = utils.compute_distance(source_patches[i, j],
                                                  target_patches[D_i, D_j])
 
-                # Get offsets f(x-1, y) and f(x, y-1)
+                # Get offsets
+                # odd - > f(x-1, y) and f(x, y-1)
+                # even - > f(x+1, y) and f(x, y+1)
                 v_horizontal = NNF[i + offset, j]
                 v_verticle = NNF[i, j + offset]
 
@@ -185,8 +228,9 @@ class Patchmatch(object):
                     _D_verticle = np.nan
 
                 # Possible distances with offsets
-                _D = [_D_horizontal, _D_verticle, _D_orig]
-                _NNF = [v_horizontal, v_verticle, NNF[i, j]]
+                # {D(f(x,y)), D(f(x-1,y)), D(f(x,y-1)))}
+                _D = [_D_orig, _D_horizontal, _D_verticle]
+                _NNF = [NNF[i, j], v_horizontal, v_verticle]
 
                 # Get min distance value
                 min_val = np.nanmin(_D)
@@ -275,11 +319,16 @@ class Patchmatch(object):
                 self.NNF,
                 self.NNF_D)
 
+
             if write_images:
                 if not os.path.isdir(img_directory):
                     os.mkdir(img_directory)
 
                 filename = "nnf_%d.png" % (self._curr_iteration + 1)
+                utils.save_NNF(NNF,
+                           filename=os.path.join(
+                               img_directory,
+                               filename))
                 utils.reconstruct_source_from_target(
                     self.target,
                     NNF,
