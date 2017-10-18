@@ -131,10 +131,10 @@ class Patchmatcher(object):
         s = self.nnflen
         # the patch center in the source image. z in the Barnes paper.
         p = index // s, index % s
-        # candidate patch in the target image. f(z)
+        # candidate patch center in the target image. f(z)
         q0 = offset // s, offset % s
-        # another candidate patch. f(z - [1,0]) + [1,0]
-        q1 = (self.NNF[index-1]+1) % self.NNF.size // s, (self.NNF[index-1]+1) % self.NNF.size % s
+        # another candidate patch center. f(z - [1,0]) + [1,0]
+        q1 = (self.NNF[index-1]+1) % len(self.NNF) // s, (self.NNF[index-1]+1) % len(self.NNF) % s
         # last candidate. f(z - [0,1]) + [0,1]
         q2 = (self.NNF[index-s]+s) // s, (self.NNF[index-s]+s) % s
 
