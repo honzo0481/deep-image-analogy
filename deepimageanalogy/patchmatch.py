@@ -118,7 +118,10 @@ class Patchmatcher(object):
         self.w = w or self.nnflen
         self.alpha = alpha
         # for now assume the first two input dims will always be square.
-        self.NNF = NNF or self._random_init()
+        if NNF is None:
+            self.NNF = self._random_init()
+        else:
+            self.NNF = NNF
 
     def _random_init(self):
         """Initialize an NNF filled with random offsets."""
