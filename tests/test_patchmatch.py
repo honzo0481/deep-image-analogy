@@ -9,7 +9,7 @@ from deepimageanalogy.patchmatch import Patchmatcher
 def nnf():
     return np.array([
         # 0, 11, 15, 12, 9, 6, 4, 7, 7, 9, 14, 15, 12, 10, 0, 12
-        2, 4, 2, 11, 4, 5, 15, 5, 0, 2, 8, 7, 2, 2, 2, 15
+        2, 4, 2, 11, 4, 5, 15, 5, 0, 3, 8, 7, 2, 2, 2, 15
     ])
 
 
