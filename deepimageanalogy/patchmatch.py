@@ -139,7 +139,7 @@ class Patchmatcher(object):
         # another candidate patch center. f(z - [1,0]) + [1,0]
         q1 = (self.NNF[index-1]+1) % len(self.NNF) // s, (self.NNF[index-1]+1) % len(self.NNF) % s
         # last candidate. f(z - [0,1]) + [0,1]
-        q2 = (self.NNF[index-s]+s) // s, (self.NNF[index-s]+s) % s
+        q2 = (self.NNF[index-s]+s) % len(self.NNF) // s, (self.NNF[index-s]+s) % len(self.NNF) % s
 
         return p, q0, q1, q2
 
