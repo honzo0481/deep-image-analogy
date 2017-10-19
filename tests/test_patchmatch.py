@@ -2,34 +2,58 @@
 
 import pytest
 import numpy as np
-
-
-SEED = 1234567890
-
-np.random.seed(SEED)
+from deepimageanalogy.patchmatch import Patchmatcher
 
 
 @pytest.fixture
-def pmuni():
-    """Patchmatcher object fixture."""
-    from deepimageanalogy.patchmatch import Patchmatcher
-
-    A = np.random.rand(6, 6, 3)
-    Bp = np.random.rand(6, 6, 3)
-
-    return Patchmatcher(A, Bp)
+def nnf():
+    return np.array([
+        # 0, 11, 15, 12, 9, 6, 4, 7, 7, 9, 14, 15, 12, 10, 0, 12
+        2, 4, 2, 11, 4, 5, 15, 5, 0, 2, 8, 7, 2, 2, 2, 15
+    ])
 
 
-def test_random_init_nnf_size(pmuni):
+@pytest.fixture
+def A():
+    return np.random.rand(6, 6, 3)
+
+
+@pytest.fixture
+def Bp():
+    return np.random.rand(6, 6, 3)
+
+
+def test_random_init_nnf_type(A, Bp):
+    """Patchmatcher should return a randomly initialized nnf of type ndarray."""
+    pm = Patchmatcher(A, Bp)
+    assert isinstance(pm.NNF, np.ndarray)
+
+
+@pytest.mark.parametrize('patchsize, padwidth', [(3, 1), (5, 2)])
+def test_padwidth(A, Bp, patchsize, padwidth):
+    """Padwith should be half the patchsize rounded down."""
+    pm = Patchmatcher(A, Bp, patchsize=patchsize)
+    assert pm.padwidth == padwidth
+
+
+def test_nnflen(A, Bp):
+    """Nnflen should be input shape minus left padding and right padding."""
+    pm = Patchmatcher(A, Bp, patchsize=3)
+    assert pm.nnflen == 4
+
+
+def test_use_precomputed_nnf(A, Bp, nnf):
+    """Patchmatcher should accept a precomputed NNF as a param."""
+    pm = Patchmatcher(A, Bp, NNF=nnf)
+
+    assert np.allclose(nnf, pm.NNF)
+
+
+def test_random_init_nnf_size(A, Bp):
     """_random_init should return an nnf with size equal to nnflen squared."""
-
-    nnflen = pmuni.nnflen
-    assert pmuni.NNF.size == nnflen**2
-
-
-def test_propagate():
-    """_propagate."""
-    assert 0
+    pm = Patchmatcher(A, Bp)
+    nnflen = pm.nnflen
+    assert pm.NNF.size == nnflen**2
 
 
 @pytest.mark.parametrize('i, o, p', [
@@ -50,10 +74,10 @@ def test_propagate():
     (14, 2, (3, 2)),
     (15, 15, (3, 3))
 ])
-def test_get_patches_gets_p(i, o, p, pmuni):
+def test_get_patches_gets_p(i, o, p, A, Bp, nnf):
     """_get_patches should return the correct subset of offsets from the nnf."""
-    print('nnflen: %s' % pmuni.nnflen)
-    assert pmuni._get_patches(i, o)[0] == p
+    pm = Patchmatcher(A, Bp, NNF=nnf)
+    assert pm._get_patches(i, o)[0] == p
 
 
 @pytest.mark.parametrize('i, o, q0', [
@@ -74,9 +98,10 @@ def test_get_patches_gets_p(i, o, p, pmuni):
     (14, 2, (0, 2)),
     (15, 15, (3, 3))
 ])
-def test_get_patches_gets_q0(i, o, q0, pmuni):
+def test_get_patches_gets_q0(i, o, q0, A, Bp, nnf):
     """_get_patches should return the correct subset of offsets from the nnf."""
-    assert pmuni._get_patches(i, o)[1] == q0
+    pm = Patchmatcher(A, Bp, NNF=nnf)
+    assert pm._get_patches(i, o)[1] == q0
 
 
 @pytest.mark.parametrize('i, o, q1', [
@@ -97,9 +122,10 @@ def test_get_patches_gets_q0(i, o, q0, pmuni):
     (14, 2, (0, 3)),
     (15, 15, (0, 3))
 ])
-def test_get_patches_gets_q1(i, o, q1, pmuni):
+def test_get_patches_gets_q1(i, o, q1, A, Bp, nnf):
     """_get_patches should return the correct subset of offsets from the nnf."""
-    assert pmuni._get_patches(i, o)[2] == q1
+    pm = Patchmatcher(A, Bp, NNF=nnf)
+    assert pm._get_patches(i, o)[2] == q1
 
 
 @pytest.mark.parametrize('i, o, q2', [
@@ -120,6 +146,11 @@ def test_get_patches_gets_q1(i, o, q1, pmuni):
     (14, 2, (3, 0)),
     (15, 15, (2, 3))
 ])
-def test_get_patches_gets_q2(i, o, q2, pmuni):
+def test_get_patches_gets_q2(i, o, q2, A, Bp, nnf):
     """_get_patches should return the correct subset of offsets from the nnf."""
-    assert pmuni._get_patches(i, o)[3] == q2
+    pm = Patchmatcher(A, Bp, NNF=nnf)
+    assert pm._get_patches(i, o)[3] == q2
+
+@pytest.mark.skip('Not implemented.')
+def test_propagate():
+    """_propagate."""
