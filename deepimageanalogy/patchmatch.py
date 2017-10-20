@@ -129,7 +129,7 @@ class Patchmatcher(object):
 
         return NNF
 
-    def _get_patches(self, index, offset):
+    def _get_patches(self, index, offset, forward=True):
         """"""
         s = self.nnflen
         # the patch center in the source image. z in the Barnes paper.
