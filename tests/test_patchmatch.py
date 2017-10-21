@@ -74,7 +74,7 @@ def test_random_init_nnf_size(A, Bp):
     (14, 2, (3, 2)),
     (15, 15, (3, 3))
 ])
-def test_get_forward_patches_gets_p(i, o, p, A, Bp, nnf):
+def test_get_forward_patches_p(i, o, p, A, Bp, nnf):
     """_get_patches should return the correct subset of offsets from the nnf."""
     pm = Patchmatcher(A, Bp, NNF=nnf)
     assert pm._get_patches(i, o)[0] == p
@@ -98,7 +98,7 @@ def test_get_forward_patches_gets_p(i, o, p, A, Bp, nnf):
     (14, 2, (0, 2)),
     (15, 15, (3, 3))
 ])
-def test_get_forward_patches_gets_q0(i, o, q0, A, Bp, nnf):
+def test_get_forward_patches_q0(i, o, q0, A, Bp, nnf):
     """_get_patches should return the correct subset of offsets from the nnf."""
     pm = Patchmatcher(A, Bp, NNF=nnf)
     assert pm._get_patches(i, o)[1] == q0
@@ -122,7 +122,7 @@ def test_get_forward_patches_gets_q0(i, o, q0, A, Bp, nnf):
     (14, 2, (0, 3)),
     (15, 15, (0, 3))
 ])
-def test_get_forward_patches_gets_q1(i, o, q1, A, Bp, nnf):
+def test_get_forward_patches_q1(i, o, q1, A, Bp, nnf):
     """_get_patches should return the correct subset of offsets from the nnf."""
     pm = Patchmatcher(A, Bp, NNF=nnf)
     assert pm._get_patches(i, o)[2] == q1
@@ -146,30 +146,31 @@ def test_get_forward_patches_gets_q1(i, o, q1, A, Bp, nnf):
     (14, 2, (3, 0)),
     (15, 15, (2, 3))
 ])
-def test_get_forward_patches_gets_q2(i, o, q2, A, Bp, nnf):
+def test_get_forward_patches_q2(i, o, q2, A, Bp, nnf):
     """_get_patches should return the correct subset of offsets from the nnf."""
     pm = Patchmatcher(A, Bp, NNF=nnf)
     assert pm._get_patches(i, o)[3] == q2
 
 
 @pytest.mark.skip('Not implemented.')
-def test_get_reverse_patches_gets_p(i, o, p, A, Bp, nnf):
+def test_get_reverse_patches_p(i, o, p, A, Bp, nnf):
     """"""
 
 
 @pytest.mark.skip('Not implemented.')
-def test_get_reverse_patches_gets_q0(i, o, q0, A, Bp, nnf):
+def test_get_reverse_patches_q0(i, o, q0, A, Bp, nnf):
     """"""
 
 
 @pytest.mark.skip('Not implemented.')
-def test_get_reverse_patches_gets_q1(i, o, q1, A, Bp, nnf):
+def test_get_reverse_patches_q1(i, o, q1, A, Bp, nnf):
     """"""
 
 
 @pytest.mark.skip('Not implemented.')
-def test_get_reverse_patches_gets_q2(i, o, q2, A, Bp, nnf):
+def test_get_reverse_patches_q2(i, o, q2, A, Bp, nnf):
     """"""
+
 
 @pytest.mark.skip('Not implemented.')
 def test_propagate_in_scan_order():
@@ -189,3 +190,14 @@ def test_bidirectional_distance():
 @pytest.mark.skip('Not implemented.')
 def test_unidirectional_distance():
     """"""
+
+
+@pytest.mark.skip('Not implemented.')
+def test_random_search_gets_patches_at_exponentially_decreasing_dist():
+    """"""
+
+
+@pytest.mark.skip('Not implemented.')
+def test_predict():
+    """"""
+
