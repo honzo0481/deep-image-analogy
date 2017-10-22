@@ -15,13 +15,20 @@ def nnf():
 
 @pytest.fixture
 def A():
-    return np.random.rand(6, 6, 3)
+    A = np.zeros((6, 6, 3))
+    A[:3, 3:, :] += 0.25
+    A[3:, :3, :] += 0.5
+    A[3:, 3:, :] += 1.0
+    return A
 
 
 @pytest.fixture
 def Bp():
-    return np.random.rand(6, 6, 3)
-
+    Bp = np.zeros((6, 6, 3))
+    Bp[:3, :3, :] += 1.0
+    Bp[:3, 3:, :] += 0.5
+    Bp[3:, :3, :] += 0.25
+    return Bp
 
 def test_random_init_nnf_type(A, Bp):
     """Patchmatcher should return a randomly initialized nnf of type ndarray."""
@@ -152,9 +159,28 @@ def test_get_forward_patches_q2(i, o, q2, A, Bp, nnf):
     assert pm._get_patches(i, o)[3] == q2
 
 
-@pytest.mark.skip('Not implemented.')
-def test_get_reverse_patches_p(i, o, p, A, Bp, nnf):
-    """"""
+@pytest.mark.parametrize('i, o, p, q0, q1, q2', [
+    (15, 15, (3, 3), (3, 3), (0, 1), (1, 3)),
+    (14, 2, (3, 2), (0, 2), (3, 2), (3, 2)),
+    (13, 2, (3, 1), (0, 2), (0, 1), (0, 0)),
+    (12, 2, (3, 0), (0, 2), (0, 1), (3, 2)),
+    (11, 7, (2, 3), (1, 3), (0, 1), (2, 3)),
+    (10, 8, (2, 2), (2, 0), (1, 2), (3, 2)),
+    (9, 3, (2, 1), (0, 3), (1, 3), (3, 2)),
+    (8, 0, (2, 0), (0, 0), (0, 2), (3, 2)),
+    (7, 5, (1, 3), (1, 1), (3, 3), (0, 3)),
+    (6, 15, (1, 2), (3, 3), (1, 0), (1, 0)),
+    (5, 5, (1, 1), (1, 1), (3, 2), (3, 3)),
+    (4, 4, (1, 0), (1, 0), (1, 0), (3, 0)),
+    (3, 11, (0, 3), (2, 3), (0, 3), (0, 1)),
+    (2, 2, (0, 2), (0, 2), (2, 2), (2, 3)),
+    (1, 4, (0, 1), (1, 0), (0, 1), (0, 1)),
+    (0, 2, (0, 0), (0, 2), (0, 3), (0, 0))
+])
+def test_get_patches_reverse_scan_order(i, o, p, q0, q1, q2, A, Bp, nnf):
+    """In reverse scan order _get_patches should return an offset plus its neighbor above and right."""
+    pm = Patchmatcher(A, Bp, NNF=nnf)
+    assert pm._get_patches(i, o, scan_order=False) == (p, q0, q1, q2)
 
 
 @pytest.mark.skip('Not implemented.')
