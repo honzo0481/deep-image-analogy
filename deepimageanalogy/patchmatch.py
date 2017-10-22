@@ -129,17 +129,27 @@ class Patchmatcher(object):
 
         return NNF
 
-    def _get_patches(self, index, offset, forward=True):
+    def _get_patches(self, index, offset, scan_order=True):
         """"""
         s = self.nnflen
+
+        if scan_order:
+            hid, hod = -1, +1  # horizontal index delta, horizontal offset delta
+            vid, vod = -s, +s  # vertical index delta, vertical offset delta
+        else:
+            hid, hod = +1, -1
+            vid, vod = +4, -4
+        hi = (index + hid) % len(self.NNF)
+        vi = (index + vid) % len(self.NNF)
+
         # the patch center in the source image. z in the Barnes paper.
         p = index // s, index % s
         # candidate patch center in the target image. f(z)
         q0 = offset // s, offset % s
-        # another candidate patch center. f(z - [1,0]) + [1,0]
-        q1 = (self.NNF[index-1]+1) % len(self.NNF) // s, (self.NNF[index-1]+1) % len(self.NNF) % s
-        # last candidate. f(z - [0,1]) + [0,1]
-        q2 = (self.NNF[index-s]+s) % len(self.NNF) // s, (self.NNF[index-s]+s) % len(self.NNF) % s
+        # horizontal candidate f(z -/+ [1,0]) +/- [1,0]
+        q1 = (self.NNF[hi]+hod) % len(self.NNF) // s, (self.NNF[hi]+hod) % len(self.NNF) % s
+        # vertical candidate. f(z -/+ [0,1]) +/- [0,1]
+        q2 = (self.NNF[vi]+vod) % len(self.NNF) // s, (self.NNF[vi]+vod) % len(self.NNF) % s
 
         return p, q0, q1, q2
 
