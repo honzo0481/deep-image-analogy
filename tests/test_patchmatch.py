@@ -43,10 +43,10 @@ def test_padwidth(A, Bp, patchsize, padwidth):
     assert pm.padwidth == padwidth
 
 
-def test_nnflen(A, Bp):
-    """Nnflen should be input shape minus left padding and right padding."""
+def test_nnfwidth(A, Bp):
+    """nnfwidth should be input shape minus left padding and right padding."""
     pm = Patchmatcher(A, Bp, patchsize=3)
-    assert pm.nnflen == 4
+    assert pm.nnfwidth == 4
 
 
 def test_use_precomputed_nnf(A, Bp, nnf):
@@ -57,10 +57,10 @@ def test_use_precomputed_nnf(A, Bp, nnf):
 
 
 def test_random_init_nnf_size(A, Bp):
-    """_random_init should return an nnf with size equal to nnflen squared."""
+    """_random_init should return an nnf with size equal to nnfwidth squared."""
     pm = Patchmatcher(A, Bp)
-    nnflen = pm.nnflen
-    assert pm.NNF.size == nnflen**2
+    nnfwidth = pm.nnfwidth
+    assert pm.NNF.size == nnfwidth**2
 
 
 @pytest.mark.parametrize('i, o, p', [

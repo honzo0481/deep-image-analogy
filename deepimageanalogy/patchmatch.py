@@ -113,9 +113,9 @@ class Patchmatcher(object):
         # Floor division gives the before and after pad widths
         self.padwidth = self.patchsize // 2
 
-        self.nnflen = self.A.shape[0] - self.padwidth * 2
+        self.nnfwidth = self.A.shape[0] - self.padwidth * 2
 
-        self.w = w or self.nnflen
+        self.w = w or self.nnfwidth
         self.alpha = alpha
         # for now assume the first two input dims will always be square.
         if NNF is None:
@@ -125,31 +125,36 @@ class Patchmatcher(object):
 
     def _random_init(self):
         """Initialize an NNF filled with random offsets."""
-        NNF = np.random.randint(self.nnflen**2, size=self.nnflen**2, dtype='int')
+        NNF = np.random.randint(self.nnfwidth**2, size=self.nnfwidth**2, dtype='int')
 
         return NNF
 
     def _get_patches(self, index, offset, scan_order=True):
         """"""
-        s = self.nnflen
+        w = self.nnfwidth
+        s = len(self.NNF)
 
         if scan_order:
             hid, hod = -1, +1  # horizontal index delta, horizontal offset delta
-            vid, vod = -s, +s  # vertical index delta, vertical offset delta
+            vid, vod = -w, +w  # vertical index delta, vertical offset delta
         else:
             hid, hod = +1, -1
-            vid, vod = +4, -4
-        hi = (index + hid) % len(self.NNF)
-        vi = (index + vid) % len(self.NNF)
+            vid, vod = +w, -w
 
-        # the patch center in the source image. z in the Barnes paper.
-        p = index // s, index % s
-        # candidate patch center in the target image. f(z)
-        q0 = offset // s, offset % s
-        # horizontal candidate f(z -/+ [1,0]) +/- [1,0]
-        q1 = (self.NNF[hi]+hod) % len(self.NNF) // s, (self.NNF[hi]+hod) % len(self.NNF) % s
-        # vertical candidate. f(z -/+ [0,1]) +/- [0,1]
-        q2 = (self.NNF[vi]+vod) % len(self.NNF) // s, (self.NNF[vi]+vod) % len(self.NNF) % s
+        h_index = (index + hid) % s
+        v_index = (index + vid) % s
+
+        h_offset = self.NNF[h_index]+hod
+        v_offset = self.NNF[v_index]+vod
+
+        # the patch center in the source image: z from the Barnes paper.
+        p = index // w, index % w
+        # candidate patch center in the target image: f(z)
+        q0 = offset // w, offset % w
+        # candidate's horizontal neighbor: f(z -/+ [1,0]) +/- [1,0]
+        q1 = h_offset % s // w, h_offset % s % w
+        # candidate's vertical neighbor: f(z -/+ [0,1]) +/- [0,1]
+        q2 = v_offset % s // w, v_offset % s % w
 
         return p, q0, q1, q2
 
@@ -167,11 +172,10 @@ class Patchmatcher(object):
             d2 = self.dist_metric(p, q2)
             # set f[x, y] to be argmin of computed distances
             if d0 > d1:
-                self.NNF[index] = q1[0]*self.nnflen + q1[1]
+                self.NNF[index] = q1[0]*self.nnfwidth + q1[1]
                 d0 = d1
             if d0 > d2:
-                self.NNF[index] = q2[0]*self.nnflen + q2[1]
-            # TODO: for even iterations iterate in reverse scan order and examine patches
+                self.NNF[index] = q2[0]*self.nnfwidth + q2[1]
 
     def _random_search(self):
         """Search for good offsets at exponentially descreasing distances."""
