@@ -30,6 +30,22 @@ def Bp():
     Bp[3:, :3, :] += 0.25
     return Bp
 
+
+@pytest.mark.skip('Not implemented.')
+def test_patchmatcher_takes_2_imgs():
+    """Patchmatcher should accept 2 images."""
+
+
+@pytest.mark.skip('Not implemented.')
+def test_patchmatcher_takes_4_imgs():
+    """Patchmatcher should accept 2 images."""
+
+
+@pytest.mark.skip('Not implemented.')
+def test_patchmatcher_raises_ValueError_when_passed_3_images():
+    """Patchmatcher should raise a ValueError if passed 3 images."""
+
+
 def test_random_init_nnf_type(A, Bp):
     """Patchmatcher should return a randomly initialized nnf of type ndarray."""
     pm = Patchmatcher(A, Bp)
@@ -52,7 +68,6 @@ def test_nnfwidth(A, Bp):
 def test_use_precomputed_nnf(A, Bp, nnf):
     """Patchmatcher should accept a precomputed NNF as a param."""
     pm = Patchmatcher(A, Bp, NNF=nnf)
-
     assert np.allclose(nnf, pm.NNF)
 
 
@@ -178,34 +193,14 @@ def test_get_forward_patches_q2(i, o, q2, A, Bp, nnf):
     (0, 2, (0, 0), (0, 2), (0, 3), (0, 0))
 ])
 def test_get_patches_reverse_scan_order(i, o, p, q0, q1, q2, A, Bp, nnf):
-    """In reverse scan order _get_patches should return an offset plus its neighbor above and right."""
+    """In reverse scan order _get_patches should return an offset plus its neighbors above and right."""
     pm = Patchmatcher(A, Bp, NNF=nnf)
     assert pm._get_patches(i, o, scan_order=False) == (p, q0, q1, q2)
 
 
 @pytest.mark.skip('Not implemented.')
-def test_get_reverse_patches_q0(i, o, q0, A, Bp, nnf):
+def test_unidirectional_distance():
     """"""
-
-
-@pytest.mark.skip('Not implemented.')
-def test_get_reverse_patches_q1(i, o, q1, A, Bp, nnf):
-    """"""
-
-
-@pytest.mark.skip('Not implemented.')
-def test_get_reverse_patches_q2(i, o, q2, A, Bp, nnf):
-    """"""
-
-
-@pytest.mark.skip('Not implemented.')
-def test_propagate_in_scan_order():
-    """_propagate should return patches in scan order on even iterations."""
-
-
-@pytest.mark.skip('Not implemented.')
-def test_propagate_in_reverse_scan_order():
-    """_propagate should return patches in scan order on odd iterations."""
 
 
 @pytest.mark.skip('Not implemented.')
@@ -214,8 +209,8 @@ def test_bidirectional_distance():
 
 
 @pytest.mark.skip('Not implemented.')
-def test_unidirectional_distance():
-    """"""
+def test_propagate_in_reverse_scan_order():
+    """_propagate should return patches in scan order on odd iterations."""
 
 
 @pytest.mark.skip('Not implemented.')

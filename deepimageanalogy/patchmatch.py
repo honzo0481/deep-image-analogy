@@ -3,54 +3,6 @@
 import numpy as np
 
 
-def  bidirectional_distance(p, q, A, Bp, B, Ap):
-    """Return the bidirectionally weighted distance D between patches P and Q.
-
-    Where p and q are patch centers in the source and target images respectively.
-
-    Parameters
-    ----------
-    p: 
-
-    q: 
-
-    A: ndarray
-        The original structural image.
-    Ap: ndarray
-        The analogous, synthetic structural image.
-    B: ndarray
-        The analogous, synthetic style image.
-    Bp: ndarray
-        The original style image.
-
-    Returns
-    ------
-    d: float32
-        the computed distance.
-    """
-
-
-def unidirectional_distance(p, q, A, Bp):
-    """Return the unidirectional distance D between patches P and Q.
-
-    Where p and q are patch centers in the source and target images respectively.
-
-    Parameters
-    ----------
-    p: 
-
-    q: 
-
-    A: ndarray
-        The original structural image.
-    Bp: ndarray
-        The original style image.
-
-    Returns
-    ------
-    d: float32
-        the computed distance.
-    """
 
 
 class Patchmatcher(object):
@@ -160,10 +112,13 @@ class Patchmatcher(object):
 
     def _propagate(self, even):
         """Propagate adjacent good offsets."""
-        # get the offsets f(x-1, y), and f(x, y-1)
-        # TODO: still need to clamp the q values that fall outside the nnf bounds.
-        for index, offset in enumerate(self.NNF):
-            p, q0, q1, q2 = self._get_patches(index, offset)
+        # get the offsets
+        if even:
+            for index, offset in zip(range(self.NNF.size), self.NNF):
+                p, q0, q1, q2 = self._get_patches(index, offset)
+        else:
+            for index, offset in zip(range(self.NNF.size-1, -1, -1), self.NNF[::-1]):
+                p, q0, q1, q2 = self._get_patches(index, offset, scan_order=False)
 
             # compute distance D between:
             # A[x, y], B[f(x, y)], B[f(x-1, y) + (1, 0)], and B[f(x, y-1) + (0, 1)]
@@ -202,3 +157,63 @@ class Patchmatcher(object):
             even = i % 2
             self._propagate(even=even)
             self._random_search()
+
+    def  bidirectional_distance(self, p, q):
+        """Return the bidirectionally weighted distance D between patches P and Q.
+
+        Where p and q are patch centers in the source and target images respectively.
+
+        Parameters
+        ----------
+        p: 
+
+        q: 
+
+        A: ndarray
+            The original structural image.
+        Ap: ndarray
+            The analogous, synthetic structural image.
+        B: ndarray
+            The analogous, synthetic style image.
+        Bp: ndarray
+            The original style image.
+
+        Returns
+        ------
+        d: float32
+            the computed distance.
+        """
+
+    def unidirectional_distance(self, p, q):
+        """Return the unidirectional distance D between patches P and Q.
+
+        Where p and q are patch centers in the source and target images respectively.
+
+        Parameters
+        ----------
+        p: patch center from image A
+
+        q: patch center from image Bp
+
+        A: ndarray
+            The original structural image.
+        Bp: ndarray
+            The original style image.
+
+        Returns
+        ------
+        d: float32
+            the computed distance.
+        """
+        Fbar = lambda mat: mat / np.linalg.det(mat)
+
+        pstart, pstop = p[0], p[1] + self.padwidth + 1
+        qstart, qstop = q[0], q[1] + self.padwidth + 1
+
+        x = self.A[pstart:pstop, pstart:pstop, :]
+        y = self.Bp[qstart:qstop, qstart:qstop, :]
+
+        fbar_x = Fbar(x)
+        fbar_y = Fbar(y)
+
+        return np.linalg.norm(fbar_x - fbar_y)**2
