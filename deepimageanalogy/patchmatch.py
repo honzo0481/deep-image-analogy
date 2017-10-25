@@ -97,6 +97,7 @@ class Patchmatcher(object):
         if (B is not None and Ap is None) or (B is None and Ap is not None):
             raise ValueError('B and Ap must be provided together. One is missing.')
 
+        # QUESTION: how should the case when the images are different sizes?
         self.A = A
         self.Bp = Bp
 

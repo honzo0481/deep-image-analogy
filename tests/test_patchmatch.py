@@ -14,31 +14,39 @@ def nnf():
 
 
 @pytest.fixture
-def A6():
-    A6 = np.zeros((6, 6, 3))
-    A6[:3, 3:, :] += 0.25
-    A6[3:, :3, :] += 0.5
-    A6[3:, 3:, :] += 1.0
-    return A6
+def A():
+    A = np.zeros((6, 6, 3))
+    A[:3, 3:, :] += 0.25
+    A[3:, :3, :] += 0.5
+    A[3:, 3:, :] += 1.0
+    return A
 
 
 @pytest.fixture
-def Bp6():
-    Bp6 = np.zeros((6, 6, 3))
-    Bp6[:3, :3, :] += 1.0
-    Bp6[:3, 3:, :] += 0.5
-    Bp6[3:, :3, :] += 0.25
-    return Bp6
+def Bp():
+    Bp = np.zeros((6, 6, 3))
+    Bp[:3, :3, :] += 1.0
+    Bp[:3, 3:, :] += 0.5
+    Bp[3:, :3, :] += 0.25
+    return Bp
 
 
-@pytest.mark.skip('Not implemented.')
-def test_patchmatcher_takes_2_imgs():
+def test_patchmatcher_takes_2_imgs(A, Bp):
     """Patchmatcher should accept 2 images."""
+    pm = Patchmatcher(A, Bp)
+    assert hasattr(pm, 'NNF')
 
 
-@pytest.mark.skip('Not implemented.')
-def test_patchmatcher_takes_4_imgs():
-    """Patchmatcher should accept 2 images."""
+def test_patchmatcher_takes_4_imgs(A, Bp):
+    """Patchmatcher should accept 4 images."""
+    pm = Patchmatcher(A, Bp, A.copy(), Bp.copy())
+    assert hasattr(pm, 'NNF')
+
+
+def test_3_imgs_fails(A, Bp):
+    """Patchmatcher should raise an exception if 3 images are passed in."""
+    with pytest.raises(ValueError):
+        pm = Patchmatcher(A, Bp, A.copy())
 
 
 @pytest.mark.skip('Not implemented.')
@@ -46,34 +54,34 @@ def test_patchmatcher_raises_ValueError_when_passed_3_images():
     """Patchmatcher should raise a ValueError if passed 3 images."""
 
 
-def test_random_init_nnf_type(A6, Bp6):
+def test_random_init_nnf_type(A, Bp):
     """Patchmatcher should return a randomly initialized nnf of type ndarray."""
-    pm = Patchmatcher(A6, Bp6)
+    pm = Patchmatcher(A, Bp)
     assert isinstance(pm.NNF, np.ndarray)
 
 
 @pytest.mark.parametrize('patchsize, padwidth', [(3, 1), (5, 2)])
-def test_padwidth(A6, Bp6, patchsize, padwidth):
+def test_padwidth(A, Bp, patchsize, padwidth):
     """Padwith should be half the patchsize rounded down."""
-    pm = Patchmatcher(A6, Bp6, patchsize=patchsize)
+    pm = Patchmatcher(A, Bp, patchsize=patchsize)
     assert pm.padwidth == padwidth
 
 
-def test_nnfwidth(A6, Bp6):
+def test_nnfwidth(A, Bp):
     """nnfwidth should be input shape minus left padding and right padding."""
-    pm = Patchmatcher(A6, Bp6, patchsize=3)
+    pm = Patchmatcher(A, Bp, patchsize=3)
     assert pm.nnfwidth == 4
 
 
-def test_use_precomputed_nnf(A6, Bp6, nnf):
+def test_use_precomputed_nnf(A, Bp, nnf):
     """Patchmatcher should accept a precomputed NNF as a param."""
-    pm = Patchmatcher(A6, Bp6, NNF=nnf)
+    pm = Patchmatcher(A, Bp, NNF=nnf)
     assert np.allclose(nnf, pm.NNF)
 
 
-def test_random_init_nnf_size(A6, Bp6):
+def test_random_init_nnf_size(A, Bp):
     """_random_init should return an nnf with size equal to nnfwidth squared."""
-    pm = Patchmatcher(A6, Bp6)
+    pm = Patchmatcher(A, Bp)
     nnfwidth = pm.nnfwidth
     assert pm.NNF.size == nnfwidth**2
 
@@ -96,9 +104,9 @@ def test_random_init_nnf_size(A6, Bp6):
     (14, 2, (3, 2), (0, 2), (0, 3), (3, 0)),
     (15, 15, (3, 3), (3, 3), (0, 3), (2, 3))
 ])
-def test_get_patche_scan_order(i, o, p, q0, q1, q2, A6, Bp6, nnf):
+def test_get_patche_scan_order(i, o, p, q0, q1, q2, A, Bp, nnf):
     """In scan order _get_patch_centers returns offset plus neighbors below and left."""
-    pm = Patchmatcher(A6, Bp6, NNF=nnf)
+    pm = Patchmatcher(A, Bp, NNF=nnf)
     assert pm._get_patch_centers(i, o) == (p, q0, q1, q2)
 
 
@@ -120,9 +128,9 @@ def test_get_patche_scan_order(i, o, p, q0, q1, q2, A6, Bp6, nnf):
     (1, 4, (0, 1), (1, 0), (0, 1), (0, 1)),
     (0, 2, (0, 0), (0, 2), (0, 3), (0, 0))
 ])
-def test_get_patch_centers_reverse_scan_order(i, o, p, q0, q1, q2, A6, Bp6, nnf):
+def test_get_patch_centers_reverse_scan_order(i, o, p, q0, q1, q2, A, Bp, nnf):
     """In reverse scan order _get_patch_centers returns offset plus neighbors above and right."""
-    pm = Patchmatcher(A6, Bp6, NNF=nnf)
+    pm = Patchmatcher(A, Bp, NNF=nnf)
     assert pm._get_patch_centers(i, o, scan_order=False) == (p, q0, q1, q2)
 
 
