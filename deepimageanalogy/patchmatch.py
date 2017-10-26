@@ -164,9 +164,8 @@ class Patchmatcher(object):
     def _get_patch(self, coord, mat):
         """Return a slice of shape patchsize X patchsize from img centered on coord."""
         x, y = coord[0], coord[1]
-        xstart, xstop = x - self.padwidth, x + self.padwidth + 1
-        ystart, ystop = y - self.padwidth, y + self.padwidth + 1
-
+        xstart, xstop = x, x + self.padwidth*2 + 1
+        ystart, ystop = y, y + self.padwidth*2 + 1
         return mat[xstart:xstop, ystart:ystop, :]
 
     def _propagate(self, even):
